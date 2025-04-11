@@ -1,5 +1,6 @@
 const express = require('express');
 const {Client,Pool} = require('pg');
+const bcrypt = require('bcrypt');
 const path = require('path');
 require('dotenv').config()
 
@@ -14,6 +15,8 @@ const dbconfig = {
     port: process.env.DB_PORT
 }
 const pool = new Pool(dbconfig);
+const saltRounds = process.env.SALT_ROUNDS*1;
+
 
 async function criaBanco(){
     try{
@@ -45,14 +48,21 @@ async function criaTabela(){
     );`);
 }
 
+async function gerarHash(senha) {
+    const hash = await bcrypt.hash(senha, saltRounds);
+    return hash;
+}
+
 app.post('/login',async (req,res)=>{
     const {nome,senha} = req.body;
-    const consulta = await pool.query(`SELECT * FROM usuarios WHERE nome = $1 AND senha = $2`, [nome,senha]);
-    if(consulta.rowCount <=0){
-        res.send('Usuário ou senha inválidos!');
-    }else{
-        res.sendFile(path.join(__dirname,'login.html'))
-    }
+    const cripto = await gerarHash(senha);
+    console.log(cripto);
+    // const consulta = await pool.query(`SELECT * FROM usuarios WHERE nome = $1 AND senha = $2`, [nome,senha]);
+    // if(consulta.rowCount <=0){
+    //     res.send('Usuário ou senha inválidos!');
+    // }else{
+    //     res.sendFile(path.join(__dirname,'login.html'))
+    // }
 })
 
 
