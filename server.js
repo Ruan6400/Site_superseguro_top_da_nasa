@@ -1,6 +1,7 @@
 const express = require('express');
 const {Client,Pool} = require('pg');
 const bcrypt = require('bcrypt');
+const multer = require('multer');
 const path = require('path');
 require('dotenv').config()
 
@@ -16,6 +17,8 @@ const dbconfig = {
 }
 const pool = new Pool(dbconfig);
 const saltRounds = process.env.SALT_ROUNDS*1;
+const upload = multer()
+
 
 
 async function criaBanco(){
@@ -64,6 +67,16 @@ app.post('/login',async (req,res)=>{
     //     res.sendFile(path.join(__dirname,'login.html'))
     // }
 })
+
+app.post('/cadastrar',upload.none(),async (req,res)=>{
+    const {nome,email,senha} = req
+    console.log(req.body);
+    const cripto = await gerarHash(senha);
+    console.log(cripto);
+    /*await pool.query(`INSERT INTO usuarios (nome,email,senha) VALUES ($1,$2,$3);`, [nome,email,cripto]);
+    res.send("cadastro realizado com sucesso!")*/
+})
+
 
 
 app.listen(port, () => {
