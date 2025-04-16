@@ -3,6 +3,7 @@ const {Client,Pool} = require('pg');
 const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
+const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer');
 require('dotenv').config()
 
@@ -27,12 +28,14 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-const mailOptions = {
-    from: 'ruansantos80@gmail.com',
-    to: 'goblinfuleiro@gmail.com',
-    subject: 'Assunto do E-mail',
-    text: 'Olá! Este é um e-mail enviado pelo Nodemailer.',
-};
+app.use((req,res,next)=>{
+    res.header('Access-Control-Allow-Origin','127.0.0.1')
+    res.header('Access-Control-Allow-Methods','GET,POST')
+    res.header('Access-Control-Allow-Headers','Content-Type')
+    next()
+})
+
+
 
 
 
@@ -63,6 +66,7 @@ async function criaTabela(){
         nome VARCHAR(50) NOT NULL UNIQUE,
         email VARCHAR(100) NOT NULL UNIQUE,
         senha VARCHAR(255) NOT NULL,
+        ativo BOOLEAN DEFAULT FALSE,
         CONSTRAINT pk_usuarios PRIMARY KEY (id)
     );`);
 }
@@ -70,6 +74,22 @@ async function criaTabela(){
 async function gerarHash(senha) {
     const hash = await bcrypt.hash(senha, saltRounds);
     return hash;
+}
+
+async function EnviarEmail(dest,sub,msg) {
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: dest,
+        subject: sub,
+        text: msg,
+    };
+    transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+            console.log('Erro ao enviar e-mail:', error);
+        } else {
+            console.log('E-mail enviado com sucesso:', info.response);
+        }
+    });
 }
 
 app.post('/login',async (req,res)=>{
@@ -92,9 +112,32 @@ app.post('/login',async (req,res)=>{
 
 app.post('/cadastrar',upload.none(),async (req,res)=>{
     const {nome,email,senha} = req.body
-    const cripto = await gerarHash(senha);
-    await pool.query(`INSERT INTO usuarios (nome,email,senha) VALUES ($1,$2,$3);`, [nome,email,cripto]);
-    res.sendFile(path.join(__dirname,"Loginok.html"))
+    try{
+        const payload = {email:email}
+        const key = process.env.TOKEN_KEY
+        const token_options = {expiresIn:'1h'}
+        const token = jwt.sign(payload,key,token_options)
+
+        await EnviarEmail(email,"Finalize o Seu cadastro","http://localhost:3000/token/"+token)
+        const cripto = await gerarHash(senha);
+        await pool.query(`INSERT INTO usuarios (nome,email,senha) VALUES ($1,$2,$3);`, [nome,email,cripto]);
+        res.send("ok")
+    }catch(error){
+        console.log(error)
+        res.send(error)
+    }
+})
+
+app.get('/token/:code',async (req,res)=>{
+    const key = process.env.TOKEN_KEY
+    try{
+        const decoded = jwt.verify(req.params.code,key)
+        pool.query('UPDATE usuarios SET ativo = TRUE WHERE email = $1;',[decoded.email])
+        console.log("Conta ativa")
+        res.send('Conta ativada com sucesso!')
+    }catch(err){
+        console.log(err)
+    }
 })
 
 
@@ -104,11 +147,5 @@ app.listen(port, () => {
     criaBanco().then(() => {
         criaTabela()
     });
-    transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-            console.log('Erro ao enviar e-mail:', error);
-        } else {
-            console.log('E-mail enviado com sucesso:', info.response);
-        }
-    });
+    
 })
