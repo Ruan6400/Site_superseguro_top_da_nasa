@@ -8,7 +8,7 @@ const nodemailer = require('nodemailer');
 require('dotenv').config()
 
 const app = express();
-const port  = process.env.SRV_PORT
+const port  = process.env.PORT
 app.use(express.urlencoded({extended:true}));
 const dbconfig = {
     user: process.env.DB_USER,
