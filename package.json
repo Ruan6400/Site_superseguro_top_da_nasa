@@ -21,6 +21,7 @@
   "homepage": "https://github.com/Ruan6400/Site_superseguro_top_da_nasa#readme",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",

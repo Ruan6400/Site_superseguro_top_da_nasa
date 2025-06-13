@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer');
+const cors = require('cors')
 require('dotenv').config()
 
 const app = express();
@@ -14,6 +15,11 @@ const key = process.env.TOKEN_KEY
 
 app.use(express.urlencoded({extended:true}));
 app.use(express.json());
+app.use(cors({
+    methods:['GET','POST','PUT','DELETE','OPTIONS'],
+    origin:"http://127.0.0.1:5500",
+    allowedHeaders:["Content-Type","Authorization"]
+}))
 
 const pool = new Pool({
     user: process.env.DB_USER,
@@ -37,12 +43,7 @@ const upload = multer()
     }
 });*/
 
-app.use((req,res,next)=>{
-    res.header('Access-Control-Allow-Origin','127.0.0.1')
-    res.header('Access-Control-Allow-Methods','GET,POST')
-    res.header('Access-Control-Allow-Headers','Content-Type')
-    next()
-})
+
 
 
 
@@ -84,13 +85,15 @@ async function gerarHash(senha) {
 }*/
 
 app.post('/login',async (req,res)=>{
-    const {user,senha} = req.body;
+    const {email,senha} = req.body;
+    console.log("login")
 
-    const consulta = await pool.query(`SELECT * FROM usuarios WHERE nome = $1 OR email = $1`, [user]);
+    const consulta = await pool.query(`SELECT * FROM usuarios WHERE nome = $1 OR email = $1`, [email]);
+    console.log
     if(consulta.rowCount <=0){
-        return res.status(404).send('Usuário ou senha inválidos!');
+        return res.status(404).json({message:'Usuário ou senha inválidos!'});
     }else{
-        const valid_passwd = await bcrypt.compare(senha, consulta.rows[0].senha);
+        const valid_passwd =consulta.rows[0].senha.length<60? senha==consulta.rows[0].senha:await bcrypt.compare(senha, consulta.rows[0].senha);
         if(valid_passwd){
             return res.status(200).json({
                 message: 'Login realizado com sucesso',
@@ -107,7 +110,7 @@ app.post('/login',async (req,res)=>{
 
 
 app.post('/cadastrar',verifyToken,async (req,res)=>{
-    const {nome,email,senha,telefone} = req.body
+    const {email,senha} = req.body
     try{
         /*const payload = {email:email}
         
@@ -116,7 +119,7 @@ app.post('/cadastrar',verifyToken,async (req,res)=>{
 
         //await EnviarEmail(email,"Finalize o Seu cadastro","http://localhost:3000/token/"+token)
         const cripto = await gerarHash(senha);
-        await pool.query(`INSERT INTO usuarios (nome,email,senha,telefone) VALUES ($1,$2,$3,$4);`, [nome,email,cripto,telefone]);
+        await pool.query(`INSERT INTO usuarios(email,senha) VALUES($1,$2);`, [email,cripto]);
         res.send("ok")
     }catch(error){
         console.log(error)
@@ -142,7 +145,7 @@ async function verifyToken(req, res, next) {
 //Lista todos os usuários
 app.get('/usuarios', verifyToken, async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM usuarios');
+        const result = await pool.query('SELECT * FROM usuarios;');
         res.status(200).json(result.rows);
     } catch (error) {
         console.error('Erro ao buscar usuários:', error);
@@ -187,7 +190,7 @@ app.delete('/usuarios/:id', verifyToken, async (req, res) => {
 
 
 
-app.listen(port, () => {
+app.listen(port,'localhost',() => {
     console.log('Server is running on port '+port);
     
     criaTabela()
