@@ -173,14 +173,14 @@ app.put('/usuarios/:id', verifyToken, async (req, res) => {
 })
 
 //Busca um usuário pelo ID e deleta
-app.delete('/usuarios/:id', verifyToken, async (req, res) => {
-    const { id } = req.params;
+app.delete('/usuarios/:email', verifyToken, async (req, res) => {
+    const { email } = req.params;
     try {
-        const registro = await pool.query('SELECT * FROM usuarios WHERE id = $1', [id]);
+        const registro = await pool.query('SELECT * FROM usuarios WHERE email = $1', [id]);
         if (registro.rowCount === 0) {
             return res.status(404).json({message:'Usuário não encontrado'});
         }
-        await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
+        await pool.query('DELETE FROM usuarios WHERE id = $1', [registro.rows[0].id]);
         res.status(200).json({message:'Usuário deletado com sucesso'});
     } catch (error) {
         console.error('Erro ao deletar usuário:', error);
